@@ -28,3 +28,39 @@ lib/mosql/streamer.rb:
   * [ 51] [TODO] spec cols zipping with rows
   * [132] [TODO] spec batch behaviour
 ```
+
+# Document : news props for nested schema
+```
+sharypic_development:
+  events:
+    :meta:
+      :table: facts_event_creations
+      :extra_props: false
+
+    :columns:
+    - dimensions_event_id:
+      :source: _id
+      :type: TEXT
+    - dimensions_user_id:
+      :source: owner_id
+      :type: TEXT
+    - created_at: DATE
+    - updated_at: DATE
+
+    :nested:
+      invitations:
+        :meta:
+          :table: facts_invitations
+          :extra_props: false
+
+        :columns:
+          - id:
+            :source: '$serial'
+            :type: 'SERIAL'
+          - dimensions_event_id:
+            :source: $parent id
+            :type: TEXT
+          - dimensions_invitation_id:
+            :source: '$nested invitations[]._id'
+            :type: TEXT
+```
