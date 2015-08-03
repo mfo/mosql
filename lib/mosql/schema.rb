@@ -65,12 +65,19 @@ module MoSQL
           next unless cname.is_a?(String)
           begin
             @map[dbname][cname] = parse_spec("#{dbname}.#{cname}", spec)
+            # TODO: spec build nested_schema
+            if spec[:nested]
+              spec[:nested].each do |nested_cname, nested_spec|
+                nested_cname = "#{cname}.#{nested_cname}"
+                nested_spec = nested_spec
+                @map[dbname][nested_cname] = parse_spec("#{dbname}.#{nested_cname}", nested_spec)
+              end
+            end
           rescue KeyError => e
             raise SchemaError.new("In spec for #{dbname}.#{cname}: #{e}")
           end
         end
       end
-
       # Lurky way to force Sequel force all timestamps to use UTC.
       Sequel.default_timezone = :utc
     end
@@ -95,7 +102,14 @@ module MoSQL
                 keys << col[:name].to_sym
               elsif not composite_key and col[:source].to_sym == :_id
                 keys << col[:name].to_sym
+              # TODO: spec find nested primary key
+              elsif not composite_key && col[:source] =~ /_id\Z/
+                keys << col[:name].to_sym
+              # TODO: spec serial primary key
+              elsif not composite_key && col[:source].to_sym == %s($serial)
+                keys << col[:name].to_sym
               end
+
             end
 
             primary_key keys
@@ -172,7 +186,13 @@ module MoSQL
       obj.has_key?(pieces.first)
     end
 
-    def fetch_special_source(obj, source, original)
+    def fetch_nested_attribute(obj, collection, attribute)
+      transform_primitive(obj[attribute])
+    end
+
+    # TODO: spec fetch_nested_attribute
+    # TODO: spec fetch parent value
+    def fetch_special_sou rce(obj, source, original, row)
       case source
       when "$timestamp"
         Sequel.function(:now)
@@ -180,9 +200,25 @@ module MoSQL
         # We need to look in the cloned original object, not in the version that
         # has had some fields deleted.
         fetch_exists(original, $1)
+      when %r{
+        ^\$nested\s                 # begins with     $nested\s
+        (?<collection>.+)\[\]\.     # continues with  $nested\s collection[].
+        (?<attribute>.+)            # ends with       $nested\s collection[].attribute
+      }x
+        # We need to look deep, really deep, extreemely deep. fuck it, recurse
+        fetch_nested_attribute(original, $~[:collection], $~[:attribute])
+      when %r{
+        ^\$parent\s                 # begins with     $parent\s
+        (?<attribute>.+)            # ends with       $parent\s attribute
+      }x
+        fetch_parent_pkey(original, $~[:attribute], row)
       else
         raise SchemaError.new("Unknown source: #{source}")
       end
+    end
+
+    def fetch_parent_pkey(original, attribute, row)
+      row.parent_pkey
     end
 
     def transform_primitive(v, type=nil)
@@ -202,23 +238,30 @@ module MoSQL
       end
     end
 
-    def transform(ns, obj, schema=nil)
-      schema ||= find_ns!(ns)
-
-      original = obj
+    # TODO: spec row usage
+    # TODO: spec usage with nested row
+    # TODO: spec usage with
+    # TODO: ensure skip serial & $timestamp [might refactor here]
+    def transform(ns, obj, schema=nil, parent_row = nil)
+      schema ||= find_ns!(ns) # cache/retain schema? benchmark? [ @schemas[schema] ||= find_ns!(ns) ]
 
       # Do a deep clone, because we're potentially going to be
       # mutating embedded objects.
+      original = obj
       obj = BSON.deserialize(BSON.serialize(obj))
 
-      row = []
-      schema[:columns].each do |col|
+      # Create a batch rows (collecting nested elements)
+      row = MoSQL::Row.new(ns, schema, parent_row)
 
+      # Maps columns
+      schema[:columns].each do |col|
         source = col[:source]
         type = col[:type]
 
-        if source.start_with?("$")
-          v = fetch_special_source(obj, source, original)
+        if source == '$serial' # mutate with NullColumn()
+          next
+        elsif source.start_with?("$")
+          v = fetch_special_source(obj, source, original, row)
         else
           v = fetch_and_delete_dotted(obj, source)
           case v
@@ -238,12 +281,22 @@ module MoSQL
         row << v
       end
 
+      # Add extra props
       if schema[:meta][:extra_props]
         extra = sanitize(obj)
         row << JSON.dump(extra)
       end
 
-      log.debug { "Transformed: #{row.inspect}" }
+      # TODO: spec row association
+      # Explore nested elements based on nested schema
+      Array(schema[:nested]).each do |nested_cname, nested_schema|
+        Array(original[nested_cname]).each do |original_nested|
+          nested_ns = [ns, nested_cname].join('.')
+          nested_row = transform(nested_ns, original_nested, nested_schema, row)
+        end
+      end
+
+      log.debug { "Transformed: #{row.to_s}" }
 
       row
     end
@@ -268,8 +321,10 @@ module MoSQL
       end
     end
 
-    def copy_column?(col)
-      col[:source] != '$timestamp'
+    # AutoIncrements, Columns
+    # TODO: spec copy column skip $serial as well as $timestamp
+    def copy_column?(col) # freeze
+      col[:source] != '$timestamp' && col[:source] != '$serial'
     end
 
     def all_columns(schema, copy=false)
@@ -287,6 +342,7 @@ module MoSQL
       all_columns(schema, true)
     end
 
+    # TODO: spec usage of objs[Row...]
     def copy_data(db, ns, objs)
       schema = find_ns!(ns)
       db.synchronize do |pg|
@@ -294,7 +350,7 @@ module MoSQL
           "(#{all_columns_for_copy(schema).map {|c| "\"#{c}\""}.join(",")}) FROM STDIN"
         pg.execute(sql)
         objs.each do |o|
-          pg.put_copy_data(transform_to_copy(ns, o, schema) + "\n")
+          pg.put_copy_data(transform_to_copy(ns, o.attributes, schema) + "\n")
         end
         pg.put_copy_end
         begin
@@ -340,15 +396,17 @@ module MoSQL
       (@map[db]||{}).keys
     end
 
+    # TODO: spec fin primary_sql_key_for_ns with AUTOINCREMENT [dedup code]
     def primary_sql_key_for_ns(ns)
       ns = find_ns!(ns)
       keys = []
       if ns[:meta][:composite_key]
         keys = ns[:meta][:composite_key]
-      else
+      elsif ns[:columns].any? {|c| c[:source] == '_id'}
         keys << ns[:columns].find {|c| c[:source] == '_id'}[:name]
+      elsif ns[:columns].any? {|c| c[:source] == 'AUTOINCREMENT'}
+        keys << ns[:columns].find {|c| c[:source] == 'AUTOINCREMENT'}[:name]
       end
-
       return keys
     end
   end

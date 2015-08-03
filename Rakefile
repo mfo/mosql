@@ -1,3 +1,4 @@
+require 'rake/notes/rake_task'
 require 'rake/testtask'
 
 task :default => [:test]

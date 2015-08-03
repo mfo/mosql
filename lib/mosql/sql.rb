@@ -26,11 +26,17 @@ module MoSQL
       @db[@schema.table_for_ns(ns).intern]
     end
 
+    # TODO: spec table for row
+    def table_for_row(row)
+      @db[@schema.table_for_ns(row.ns).intern]
+    end
+
+    # TODO: spec extract row extract is done with a Row
     def transform_one_ns(ns, obj)
       h = {}
       cols = @schema.all_columns(@schema.find_ns(ns))
       row  = @schema.transform(ns, obj)
-      cols.zip(row).each { |k,v| h[k] = v }
+      cols.zip(row.attributes).each { |k,v| h[k] = v }
       h
     end
 

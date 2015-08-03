@@ -48,6 +48,7 @@ module MoSQL
       end
     end
 
+    # TODO: spec cols zipping with rows
     def bulk_upsert(table, ns, items)
       begin
         @schema.copy_data(table.db, ns, items)
@@ -56,7 +57,7 @@ module MoSQL
         cols = @schema.all_columns(@schema.find_ns(ns))
         items.each do |it|
           h = {}
-          cols.zip(it).each { |k,v| h[k] = v }
+          cols.zip(it.attributes).each { |k,v| h[k] = v }
           unsafe_handle_exceptions(ns, h) do
             @sql.upsert!(table, @schema.primary_sql_key_for_ns(ns), h)
           end
@@ -104,7 +105,6 @@ module MoSQL
       else
         dbnames = @mongo.database_names
       end
-
       dbnames.each do |dbname|
         spec = @schema.find_db(dbname)
 
@@ -129,10 +129,12 @@ module MoSQL
 
     def did_truncate; @did_truncate ||= {}; end
 
+    # TODO: spec batch behaviour
     def import_collection(ns, collection, filter)
       log.info("Importing for #{ns}...")
       count = 0
       batch = []
+      nested_batch = []
       table = @sql.table_for_ns(ns)
       unless options[:no_drop_tables] || did_truncate[table.first_source]
         table.truncate
@@ -144,16 +146,27 @@ module MoSQL
       collection.find(filter, :batch_size => BATCH) do |cursor|
         with_retries do
           cursor.each do |obj|
-            batch << @schema.transform(ns, obj)
-            count += 1
+            row = @schema.transform(ns, obj)
+            batch << row
+            nested_batch.push(*row.nested) unless row.nested.empty?
+            count += row.size
 
-            if batch.length >= BATCH
+            if count >= BATCH
               sql_time += track_time do
                 bulk_upsert(table, ns, batch)
               end
               elapsed = Time.now - start
               log.info("Imported #{count} rows (#{elapsed}s, #{sql_time}s SQL)...")
+
+              first_row = nested_batch.first
+              if nested_batch.size > 0
+                nested_table = @sql.table_for_row(first_row)
+                sql_time += track_time do
+                  bulk_upsert(nested_table, first_row.ns, nested_batch)
+                end
+              end
               batch.clear
+              nested_batch.clear
               exit(0) if @done
             end
           end
