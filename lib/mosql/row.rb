@@ -25,7 +25,7 @@ module MoSQL
 
     # row sql
     # nested sql
-
+    # FIXME: safe loopup for pkey
     def parent_pkey
       @parent.attributes.first
     end

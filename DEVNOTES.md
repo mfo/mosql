@@ -1,8 +1,9 @@
 # TODO : rake notes
 
 ```
-ib/mosql/row.rb:
+lib/mosql/row.rb:
   * [  2] [TODO] spec Row modeling
+  * [ 28] [FIXME] safe loopup for pkey
 
 lib/mosql/schema.rb:
   * [ 68] [TODO] spec build nested_schema
