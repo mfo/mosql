@@ -255,9 +255,9 @@ EOF
         @streamer.bulk_upsert(sequel[:sqltable], 'mosql_test.collection',
                               objs)
 
-        assert(sequel[:sqltable].where(:_id => objs[0].first, :var => 0).count)
-        assert(sequel[:sqltable].where(:_id => objs[1].first, :var => 1).count)
-        assert(sequel[:sqltable].where(:_id => objs[2].first, :var => 3).count)
+        assert(sequel[:sqltable].where(:_id => objs[0].attributes.first, :var => 0).count)
+        assert(sequel[:sqltable].where(:_id => objs[1].attributes.first, :var => 1).count)
+        assert(sequel[:sqltable].where(:_id => objs[2].attributes.first, :var => 3).count)
       end
 
       it 'upserts' do
@@ -279,8 +279,8 @@ EOF
                               newobjs)
 
 
-        assert(sequel[:sqltable].where(:_id => newobjs[0].first, :var => 117).count)
-        assert(sequel[:sqltable].where(:_id => newobjs[1].first, :var => 32).count)
+        assert(sequel[:sqltable].where(:_id => newobjs[0].attributes.first, :var => 117).count)
+        assert(sequel[:sqltable].where(:_id => newobjs[1].attributes.first, :var => 32).count)
       end
 
       describe 'when working with --unsafe' do
