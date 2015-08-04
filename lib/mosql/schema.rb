@@ -90,7 +90,6 @@ module MoSQL
           composite_key = meta[:composite_key]
           keys = []
           log.info("Creating table '#{meta[:table]}'...")
-
           db.send(clobber ? :create_table! : :create_table?, meta[:table]) do
             collection[:columns].each do |col|
               opts = {}
@@ -237,7 +236,6 @@ module MoSQL
     # TODO: spec row usage
     # TODO: spec usage with nested row
     # TODO: spec usage with
-    # TODO: ensure skip serial & $timestamp [might refactor here]
     def transform(ns, obj, schema=nil, parent_row = nil)
       schema ||= find_ns!(ns) # cache/retain schema? benchmark? [ @schemas[schema] ||= find_ns!(ns) ]
 
@@ -283,7 +281,6 @@ module MoSQL
         row << JSON.dump(extra)
       end
 
-      # TODO: spec row association
       # Explore nested elements based on nested schema
       Array(schema[:nested]).each do |nested_cname, nested_schema|
         Array(original[nested_cname]).each do |original_nested|
@@ -392,7 +389,6 @@ module MoSQL
       (@map[db]||{}).keys
     end
 
-    # TODO: spec fin primary_sql_key_for_ns with AUTOINCREMENT [dedup code]
     def primary_sql_key_for_ns(ns)
       ns = find_ns!(ns)
       keys = []
