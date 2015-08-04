@@ -55,7 +55,29 @@ db:
       - var:
         :source: var
         :type: TEXT
-
+  with_nested_association:
+    :meta:
+      :table: sqltable7
+      :extra_props: false
+    :columns:
+      - id:
+        :source: _id
+        :type: TEXT
+    :nested:
+      with_nested_association:
+        :meta:
+          :table: sqltable8
+          :extra_props: false
+        :columns:
+          - id:
+            :source: '$serial'
+            :type: 'SERIAL'
+          - with_nested_association_id:
+            :source: $parent id
+            :type: TEXT
+          - nested_attribute:
+            :source: '$nested collection_name[]._id'
+            :type: TEXT
 EOF
 
   before do
@@ -116,6 +138,8 @@ EOF
     db.expects(:create_table?).with('sqltable4')
     db.expects(:create_table?).with('sqltable5')
     db.expects(:create_table?).with('sqltable6')
+    db.expects(:create_table?).with('sqltable7')
+    db.expects(:create_table?).with('sqltable8')
 
     @map.create_schema(db)
   end
@@ -150,6 +174,15 @@ EOF
     stub_6.expects(:column).with('time', 'TEXT', {})
     stub_6.expects(:column).with('var', 'TEXT', {})
     stub_6.expects(:primary_key).with([:store, :time])
+    stub_7 = stub('table 7')
+    stub_7.expects(:column).with('id', 'TEXT', {})
+    stub_7.expects(:primary_key).with([:id])
+    stub_8 = stub('table 8')
+    stub_8.expects(:column).with('id', 'SERIAL', {})
+    stub_8.expects(:column).with('with_nested_association_id', 'TEXT', {})
+    stub_8.expects(:column).with('nested_attribute', 'TEXT', {})
+    stub_8.expects(:primary_key).with([:id])
+
     (class << db; self; end).send(:define_method, :create_table?) do |tbl, &blk|
       case tbl
       when "sqltable"
@@ -164,6 +197,10 @@ EOF
         o = stub_5
       when "sqltable6"
         o = stub_6
+      when "sqltable7"
+        o = stub_7
+      when "sqltable8"
+        o = stub_8
       else
         assert(false, "Tried to create an unexpected table: #{tbl}")
       end

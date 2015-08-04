@@ -65,7 +65,7 @@ module MoSQL
           next unless cname.is_a?(String)
           begin
             @map[dbname][cname] = parse_spec("#{dbname}.#{cname}", spec)
-            # TODO: spec build nested_schema
+
             if spec[:nested]
               spec[:nested].each do |nested_cname, nested_spec|
                 nested_cname = "#{cname}.#{nested_cname}"
