@@ -103,10 +103,10 @@ module MoSQL
               elsif not composite_key and col[:source].to_sym == :_id
                 keys << col[:name].to_sym
               # TODO: spec find nested primary key
-              elsif not composite_key && col[:source] =~ /_id\Z/
+              elsif not composite_key and !(col[:source].to_sym =~ /\$nested .* _id\Z/).nil?
                 keys << col[:name].to_sym
               # TODO: spec serial primary key
-              elsif not composite_key && col[:source].to_sym == %s($serial)
+              elsif not composite_key and col[:source].to_sym == %s($serial)
                 keys << col[:name].to_sym
               end
 
@@ -192,7 +192,7 @@ module MoSQL
 
     # TODO: spec fetch_nested_attribute
     # TODO: spec fetch parent value
-    def fetch_special_sou rce(obj, source, original, row)
+    def fetch_special_source(obj, source, original, row)
       case source
       when "$timestamp"
         Sequel.function(:now)

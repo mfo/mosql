@@ -30,6 +30,7 @@ lib/mosql/streamer.rb:
 ```
 
 # Document : news props for nested schema
+
 ```
 sharypic_development:
   events:

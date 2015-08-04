@@ -175,14 +175,14 @@ EOF
   describe 'when transforming' do
     it 'transforms rows' do
       out = @map.transform('db.collection', {'_id' => "row 1", 'var' => 6, 'str' => 'a string', 'arry' => [1,2,3]})
-      assert_equal(["row 1", 6, 'a string', [1,2,3]], out)
+      assert_equal(["row 1", 6, 'a string', [1,2,3]], out.attributes)
     end
 
     it 'Includes extra props' do
       out = @map.transform('db.with_extra_props', {'_id' => 7, 'var' => 6, 'other var' => {'key' => 'value'}})
-      assert_equal(2, out.length)
-      assert_equal(7, out[0])
-      assert_equal({'var' => 6, 'other var' => {'key' => 'value'}}, JSON.parse(out[1]))
+      assert_equal(2, out.attributes.length)
+      assert_equal(7, out.attributes[0])
+      assert_equal({'var' => 6, 'other var' => {'key' => 'value'}}, JSON.parse(out.attributes[1]))
     end
 
     it 'gets all_columns right' do
@@ -192,26 +192,26 @@ EOF
 
     it 'stringifies symbols' do
       out = @map.transform('db.collection', {'_id' => "row 1", 'str' => :stringy, 'arry' => [1,2,3]})
-      assert_equal(["row 1", nil, 'stringy', [1,2,3]], out)
+      assert_equal(["row 1", nil, 'stringy', [1,2,3]], out.attributes)
     end
 
     it 'extracts object ids from a DBRef' do
       oid = BSON::ObjectId.new
       out = @map.transform('db.collection', {'_id' => "row 1",
           'str' => BSON::DBRef.new('db.otherns', oid)})
-      assert_equal(["row 1", nil, oid.to_s, nil], out)
+      assert_equal(["row 1", nil, oid.to_s, nil], out.attributes)
     end
 
     it 'converts DBRef to object id in arrays' do
       oid = [ BSON::ObjectId.new, BSON::ObjectId.new]
       o = {'_id' => "row 1", "str" => [ BSON::DBRef.new('db.otherns', oid[0]), BSON::DBRef.new('db.otherns', oid[1]) ] }
       out = @map.transform('db.collection', o)
-      assert_equal(["row 1", nil, JSON.dump(oid.map! {|o| o.to_s}), nil ], out)
+      assert_equal(["row 1", nil, JSON.dump(oid.map! {|o| o.to_s}), nil ], out.attributes)
     end
 
     it 'changes NaN to null in extra_props' do
       out = @map.transform('db.with_extra_props', {'_id' => 7, 'nancy' => 0.0/0.0})
-      extra = JSON.parse(out[1])
+      extra = JSON.parse(out.attributes[1])
       assert(extra.key?('nancy'))
       assert_equal(nil, extra['nancy'])
     end
@@ -221,7 +221,7 @@ EOF
         {'_id' => 7,
           'blob' => BSON::Binary.new("\x00\x00\x00"),
           'embedded' => {'thing' => BSON::Binary.new("\x00\x00\x00")}})
-      extra = JSON.parse(out[1])
+      extra = JSON.parse(out.attributes[1])
       assert(extra.key?('blob'))
       assert_equal('AAAA', extra['blob'].strip)
       refute_nil(extra['embedded'])
@@ -229,10 +229,11 @@ EOF
       assert_equal('AAAA', extra['embedded']['thing'].strip)
     end
 
-    it 'will treat arrays as strings when schame says to' do
-      out = @map.transform('db.treat_array_as_string', {'_id' => 1, 'arry' => [1, 2, 3]})
-      assert_equal(out[0], 1)
-      assert_equal(out[1], '[1,2,3]')
+    it 'will_treat_arrays as strings when schame says to' do
+      row = @map.transform('db.treat_array_as_string', {'_id' => 1, 'arry' => [1, 2, 3]})
+      assert row.is_a?(MoSQL::Row)
+      assert_equal(row.attributes[0], 1)
+      assert_equal(row.attributes[1], '[1,2,3]')
     end
   end
 
@@ -379,29 +380,29 @@ EOF
 
     it 'translates $timestamp' do
       r = @othermap.transform('db.collection', { '_id' => 'a' })
-      assert_equal(['a', Sequel.function(:now)], r)
+      assert_equal(['a', Sequel.function(:now)], r.attributes)
     end
 
     it 'translates $exists' do
       r = @othermap.transform('db.existence', { '_id' => 'a' })
-      assert_equal(['a', false, false], r)
+      assert_equal(['a', false, false], r.attributes)
       r = @othermap.transform('db.existence', { '_id' => 'a', 'foo' => nil })
-      assert_equal(['a', true, false], r)
+      assert_equal(['a', true, false], r.attributes)
       r = @othermap.transform('db.existence', { '_id' => 'a', 'foo' => {} })
-      assert_equal(['a', true, false], r)
+      assert_equal(['a', true, false], r.attributes)
       r = @othermap.transform('db.existence', { '_id' => 'a', 'foo' => {'bar' => nil} })
-      assert_equal(['a', true, true], r)
+      assert_equal(['a', true, true], r.attributes)
       r = @othermap.transform('db.existence', { '_id' => 'a', 'foo' => {'bar' => 42} })
-      assert_equal(['a', true, true], r)
+      assert_equal(['a', true, true], r.attributes)
     end
 
     it 'can get $exists and value' do
       r = @othermap.transform('db.exists_and_value', { '_id' => 'a' })
-      assert_equal(['a', nil, false], r)
+      assert_equal(['a', nil, false], r.attributes)
       r = @othermap.transform('db.exists_and_value', { '_id' => 'a', 'foo' => nil })
-      assert_equal(['a', nil, true], r)
+      assert_equal(['a', nil, true], r.attributes)
       r = @othermap.transform('db.exists_and_value', { '_id' => 'a', 'foo' => 'xxx' })
-      assert_equal(['a', 'xxx', true], r)
+      assert_equal(['a', 'xxx', true], r.attributes)
     end
 
     it 'rejects unknown specials' do
