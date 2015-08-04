@@ -76,7 +76,7 @@ db:
             :source: $parent id
             :type: TEXT
           - nested_attribute:
-            :source: '$nested collection_one[]._id'
+            :source: '$nested with_nested_association[]._id'
             :type: TEXT
       with_nested_composite_pkey:
         :meta:
@@ -85,7 +85,7 @@ db:
             - id
         :columns:
           - id:
-            :source: '$nested collection_two[]._id'
+            :source: '$nested with_nested_composite_pkey[]._id'
             :type: 'TEXT'
 
 EOF
@@ -237,6 +237,52 @@ EOF
     it 'transforms rows' do
       out = @map.transform('db.collection', {'_id' => "row 1", 'var' => 6, 'str' => 'a string', 'arry' => [1,2,3]})
       assert_equal(["row 1", 6, 'a string', [1,2,3]], out.attributes)
+    end
+
+    it 'given a parent_row, builds row and associate it with parent_row' do
+      parent_ns = 'db.with_nested_association'
+      parent_schema = @map.find_ns!(parent_ns)
+
+      nested_ns = [parent_ns, "with_nested_serial_pkey"].join('.')
+      nested_schema = @map.find_ns!(nested_ns)
+
+      obj = {
+        '_id' => "id_parent",
+        'with_nested_serial_pkey' => [ { '_id' => 'id_collection_one' } ],
+        'with_nested_composite_pkey' => [ { '_id' => 'id_collection_two' } ]
+      }
+
+      parent_row = MoSQL::Row.new(parent_ns, parent_schema)
+
+      out = @map.transform(nested_ns, obj, nested_schema, parent_row)
+      assert_equal parent_row, out.parent
+      assert_equal 1, parent_row.nested.size
+      assert_equal out, parent_row.nested.first
+    end
+
+    it 'transforms on nested association works with root object' do
+      cname = 'db.with_nested_association'
+      obj = {
+        '_id' => "id_parent",
+        'with_nested_serial_pkey' => [ { '_id' => 'id_collection_one' } ],
+        'with_nested_composite_pkey' => [ { '_id' => 'id_collection_two' } ]
+      }
+
+      out = @map.transform(cname, obj)
+      assert_equal(["id_parent"], out.attributes)
+      assert !out.nested.empty?
+    end
+
+    it 'transforms nested associations works with nested objects' do
+      cname = 'db.with_nested_association'
+      obj = {
+        '_id' => "id_parent",
+        'with_nested_serial_pkey' => [ { '_id' => 'id_with_nested_serial_pkey' } ],
+        'with_nested_composite_pkey' => [ { '_id' => 'id_nested_composite_pkey' } ]
+      }
+      out = @map.transform(cname, obj)
+      assert_equal ['id_parent', 'id_with_nested_serial_pkey'], out.nested[0].attributes
+      assert_equal ['id_nested_composite_pkey'], out.nested[1].attributes
     end
 
     it 'Includes extra props' do
