@@ -100,7 +100,7 @@ EOF
   it 'Can transform BSON::ObjectIDs' do
     o = {'_id' => BSON::ObjectId.new, 'var' => 0}
     row = @map.transform('db.collection', o)
-    table.insert(row)
+    table.insert(row.attributes)
     assert_equal(o['_id'].to_s, table.select.first[:_id])
   end
 
