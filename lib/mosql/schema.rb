@@ -90,6 +90,7 @@ module MoSQL
           composite_key = meta[:composite_key]
           keys = []
           log.info("Creating table '#{meta[:table]}'...")
+
           db.send(clobber ? :create_table! : :create_table?, meta[:table]) do
             collection[:columns].each do |col|
               opts = {}
@@ -102,14 +103,9 @@ module MoSQL
                 keys << col[:name].to_sym
               elsif not composite_key and col[:source].to_sym == :_id
                 keys << col[:name].to_sym
-              # TODO: spec find nested primary key
-              elsif not composite_key and !(col[:source].to_sym =~ /\$nested .* _id\Z/).nil?
-                keys << col[:name].to_sym
-              # TODO: spec serial primary key
               elsif not composite_key and col[:source].to_sym == %s($serial)
                 keys << col[:name].to_sym
               end
-
             end
 
             primary_key keys
@@ -404,8 +400,8 @@ module MoSQL
         keys = ns[:meta][:composite_key]
       elsif ns[:columns].any? {|c| c[:source] == '_id'}
         keys << ns[:columns].find {|c| c[:source] == '_id'}[:name]
-      elsif ns[:columns].any? {|c| c[:source] == 'AUTOINCREMENT'}
-        keys << ns[:columns].find {|c| c[:source] == 'AUTOINCREMENT'}[:name]
+      elsif ns[:columns].any? {|c| c[:source] == '$serial'}
+        keys << ns[:columns].find {|c| c[:source] == '$serial'}[:name]
       end
       return keys
     end

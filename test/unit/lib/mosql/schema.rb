@@ -64,7 +64,7 @@ db:
         :source: _id
         :type: TEXT
     :nested:
-      with_nested_association:
+      with_nested_serial_pkey:
         :meta:
           :table: sqltable8
           :extra_props: false
@@ -76,8 +76,18 @@ db:
             :source: $parent id
             :type: TEXT
           - nested_attribute:
-            :source: '$nested collection_name[]._id'
+            :source: '$nested collection_one[]._id'
             :type: TEXT
+      with_nested_composite_pkey:
+        :meta:
+          :table: sqltable9
+          :composite_key:
+            - id
+        :columns:
+          - id:
+            :source: '$nested collection_two[]._id'
+            :type: 'TEXT'
+
 EOF
 
   before do
@@ -130,6 +140,14 @@ EOF
     assert_equal(['_id'], @map.primary_sql_key_for_ns('db.old_conf_syntax'))
   end
 
+  it 'Can finds $serial primary_key' do
+    assert_equal(['id'], @map.primary_sql_key_for_ns('db.with_nested_association.with_nested_serial_pkey'))
+  end
+
+  it 'Can find composite_key for nested nested association' do
+    assert_equal(['id'], @map.primary_sql_key_for_ns('db.with_nested_association.with_nested_composite_pkey'))
+  end
+
   it 'can create a SQL schema' do
     db = stub()
     db.expects(:create_table?).with('sqltable')
@@ -140,6 +158,7 @@ EOF
     db.expects(:create_table?).with('sqltable6')
     db.expects(:create_table?).with('sqltable7')
     db.expects(:create_table?).with('sqltable8')
+    db.expects(:create_table?).with('sqltable9')
 
     @map.create_schema(db)
   end
@@ -182,6 +201,9 @@ EOF
     stub_8.expects(:column).with('with_nested_association_id', 'TEXT', {})
     stub_8.expects(:column).with('nested_attribute', 'TEXT', {})
     stub_8.expects(:primary_key).with([:id])
+    stub_9 = stub('table 9')
+    stub_9.expects(:column).with('id', 'TEXT', {})
+    stub_9.expects(:primary_key).with([:id])
 
     (class << db; self; end).send(:define_method, :create_table?) do |tbl, &blk|
       case tbl
@@ -201,6 +223,8 @@ EOF
         o = stub_7
       when "sqltable8"
         o = stub_8
+      when "sqltable9"
+        o = stub_9
       else
         assert(false, "Tried to create an unexpected table: #{tbl}")
       end
