@@ -104,8 +104,8 @@ EOF
     assert_equal(o['_id'].to_s, table.select.first[:_id])
   end
 
-  describe 'special fields' do
-  SPECIAL_MAP = <<EOF
+  describe 'special field $timestamp' do
+    SPECIAL_MAP_TIMESTAMP = <<EOF
 ---
 db:
   collection:
@@ -119,7 +119,7 @@ db:
 EOF
 
     before do
-      @specialmap = MoSQL::Schema.new(YAML.load(SPECIAL_MAP))
+      @specialmap = MoSQL::Schema.new(YAML.load(SPECIAL_MAP_TIMESTAMP))
 
       @sequel.drop_table?(:special)
       @specialmap.create_schema(@sequel)
@@ -145,6 +145,49 @@ EOF
       assert_instance_of(Time, rows[0][:mosql_updated])
       assert_operator(rows[0][:mosql_updated], :>, before)
       assert_operator(rows[0][:mosql_updated], :<, after)
+    end
+  end
+
+  describe '' do
+    SPECIAL_MAP_SERIAL = <<EOF
+---
+db:
+  collection:
+    :meta:
+      :table: special
+    :columns:
+      - id:
+        :source: '$serial'
+        :type: 'SERIAL'
+      - title:
+        :source: title
+        :type: TEXT
+
+EOF
+    before do
+      @specialmap = MoSQL::Schema.new(YAML.load(SPECIAL_MAP_SERIAL))
+
+      @sequel.drop_table?(:special)
+      @specialmap.create_schema(@sequel)
+    end
+
+    it 'serial type auto increments' do
+      @sequel[:special].insert({})
+      row1 = @sequel[:special].select.first
+      assert_equal(1, row1[:id], 'row 1 should have id at 1')
+    end
+
+    it 'MFO populate $serial on COPY' do
+      objects = [
+                 {"title" => 'row1'},
+                 {"title" => 'row2'}
+                ]
+      @specialmap.copy_data(@sequel, 'db.collection',
+                            objects.map { |o| @specialmap.transform('db.collection', o) } )
+      rows = @sequel[:special].select.sort_by { |r| r[:id] }
+
+      assert_equal(1, rows[0][:id])
+      assert_equal(2, rows[1][:id])
     end
   end
 end
