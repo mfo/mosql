@@ -29,6 +29,34 @@ db:
       - var_b:
         :source: vars.b
         :type: TEXT
+  with_nested_association:
+    :meta:
+      :table: sqltable4
+      :extra_props: false
+    :columns:
+      - id:
+        :source: _id
+        :type: TEXT
+      - title:
+        :source: title
+        :type: TEXT
+
+    :nested:
+      with_nested_serial_pkey:
+        :meta:
+          :table: sqltable5
+          :extra_props: false
+        :columns:
+          - id:
+            :source: '$serial'
+            :type: 'SERIAL'
+          - with_nested_association_id:
+            :source: $parent id
+            :type: TEXT
+          - nested_attribute:
+            :source: '$nested with_nested_association[]._id'
+            :type: TEXT
+
 EOF
 
   before do
@@ -37,18 +65,26 @@ EOF
     @sequel.drop_table?(:sqltable)
     @sequel.drop_table?(:sqltable2)
     @sequel.drop_table?(:sqltable3)
+    @sequel.drop_table?(:sqltable4)
+    @sequel.drop_table?(:sqltable5)
     @map.create_schema(@sequel)
   end
 
   def table; @sequel[:sqltable]; end
   def table2; @sequel[:sqltable2]; end
   def table3; @sequel[:sqltable3]; end
+  def table4; @sequel[:sqltable4]; end
+  def table5; @sequel[:sqltable5]; end
 
   it 'Creates the tables with the right columns' do
     assert_equal(Set.new([:_id, :var, :arry]),
                  Set.new(table.columns))
     assert_equal(Set.new([:_id, :_extra_props]),
                  Set.new(table2.columns))
+    assert_equal(Set.new([:id, :title]),
+                 Set.new(table4.columns))
+    assert_equal(Set.new([:id, :with_nested_association_id, :nested_attribute]),
+                 Set.new(table5.columns))
   end
 
   it 'Can COPY data' do
@@ -89,6 +125,32 @@ EOF
     o = table3.first(:_id => 'd')
     assert_equal({'vars' => { 'c' => 7}, 'extra' => 'moo' }, JSON.parse(o[:_extra_props]))
     assert_equal(nil, o[:var_b])
+  end
+
+  it 'Can COPY nested data' do
+    ns = 'db.with_nested_association'
+    objects = [
+                {
+                  '_id' => "id_parent",
+                  'title' => 'woot',
+                  'with_nested_serial_pkey' => [ { '_id' => 'nested attribute' } ]
+                }
+              ]
+    transformed_objects = objects.map { |o| @map.transform(ns, o) }
+
+    @map.copy_data(@sequel, ns, transformed_objects)
+    nested = transformed_objects.first.nested
+    @map.copy_data(@sequel, nested.first.ns, nested)
+    assert_equal(1, table4.count, "should have created one row for root")
+    o = table4.first({})
+    assert_equal('id_parent', o[:id])
+    assert_equal('woot', o[:title])
+
+    assert_equal(1, table5.count, "should have created one row for nested assoc 1")
+    o = table5.first({})
+    assert_equal(1, o[:id])
+    assert_equal('id_parent', o[:with_nested_association_id])
+    assert_equal('nested attribute', o[:nested_attribute])
   end
 
   it 'Can COPY BSON::ObjectIDs' do
@@ -148,7 +210,7 @@ EOF
     end
   end
 
-  describe '' do
+  describe '$serial' do
     SPECIAL_MAP_SERIAL = <<EOF
 ---
 db:
@@ -177,7 +239,7 @@ EOF
       assert_equal(1, row1[:id], 'row 1 should have id at 1')
     end
 
-    it 'MFO populate $serial on COPY' do
+    it 'populate $serial on COPY' do
       objects = [
                  {"title" => 'row1'},
                  {"title" => 'row2'}

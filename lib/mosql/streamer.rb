@@ -176,6 +176,14 @@ module MoSQL
       unless batch.empty?
         bulk_upsert(table, ns, batch)
       end
+      unless nested_batch.empty?
+        if nested_batch.size > 0
+          nested_table = @sql.table_for_row(first_row)
+          sql_time += track_time do
+            bulk_upsert(nested_table, first_row.ns, nested_batch)
+          end
+        end
+      end
     end
 
     def optail

@@ -8,11 +8,9 @@ lib/mosql/row.rb:
 lib/mosql/schema.rb:
   * [188] [TODO] spec fetch_nested_attribute
   * [189] [TODO] spec fetch parent value
-  * [236] [TODO] spec row usage
-  * [237] [TODO] spec usage with nested row
-  * [238] [TODO] spec usage with
-  * [318] [TODO] spec copy column skip $serial as well as $timestamp
-  * [338] [TODO] spec usage of objs[Row...]
+  * [236] [TODO] spec row usage [ensure schema root/parent, ns root/parent etc...]
+  * [316] [TODO] spec copy column skip $serial as well as $timestamp. Digg PG default sequence value
+  * [336] [TODO] spec usage of objs[Row...]
 
 lib/mosql/sql.rb:
   * [ 29] [TODO] spec table for row
@@ -20,7 +18,8 @@ lib/mosql/sql.rb:
 
 lib/mosql/streamer.rb:
   * [ 51] [TODO] spec cols zipping with rows
-  * [132] [TODO] spec batch behaviour```
+  * [132] [TODO] spec batch behaviour
+```
 
 # Document : news props for nested schema
 

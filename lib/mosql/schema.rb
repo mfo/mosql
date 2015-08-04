@@ -233,9 +233,7 @@ module MoSQL
       end
     end
 
-    # TODO: spec row usage
-    # TODO: spec usage with nested row
-    # TODO: spec usage with
+    # TODO: spec row usage [ensure schema root/parent, ns root/parent etc...]
     def transform(ns, obj, schema=nil, parent_row = nil)
       schema ||= find_ns!(ns) # cache/retain schema? benchmark? [ @schemas[schema] ||= find_ns!(ns) ]
 
@@ -315,7 +313,7 @@ module MoSQL
     end
 
     # AutoIncrements, Columns
-    # TODO: spec copy column skip $serial as well as $timestamp
+    # TODO: spec copy column skip $serial as well as $timestamp. Digg PG default sequence value
     def copy_column?(col) # freeze
       col[:source] != '$timestamp' && col[:source] != '$serial'
     end
