@@ -151,11 +151,13 @@ module MoSQL
         with_retries do
           cursor.each do |obj|
             row = @schema.transform(ns, obj)
+
             batch << row
             nested_batch.push(*row.nested) unless row.nested.empty?
+
             count += row.size
 
-            if count >= BATCH
+            if batch.size + nested_batch.size >= BATCH
               sql_time += track_time do
                 bulk_upsert(table, ns, batch)
               end
@@ -168,6 +170,7 @@ module MoSQL
                 sql_time += track_time do
                   bulk_upsert(nested_table, first_row.ns, nested_batch)
                 end
+                elapsed = Time.now - start
               end
               batch.clear
               nested_batch.clear
@@ -181,6 +184,7 @@ module MoSQL
         bulk_upsert(table, ns, batch)
       end
       unless nested_batch.empty?
+        first_row = nested_batch.first
         if nested_batch.size > 0
           nested_table = @sql.table_for_row(first_row)
           sql_time += track_time do
