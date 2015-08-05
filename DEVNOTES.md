@@ -6,9 +6,6 @@ lib/mosql/row.rb:
   * [ 28] [FIXME] safe loopup for pkey
 
 lib/mosql/schema.rb:
-  * [188] [TODO] spec fetch_nested_attribute
-  * [189] [TODO] spec fetch parent value
-  * [236] [TODO] spec row usage [ensure schema root/parent, ns root/parent etc...]
   * [316] [TODO] spec copy column skip $serial as well as $timestamp. Digg PG default sequence value
   * [336] [TODO] spec usage of objs[Row...]
 
