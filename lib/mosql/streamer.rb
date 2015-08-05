@@ -112,7 +112,14 @@ module MoSQL
 
         log.info("Importing for Mongo DB #{dbname}...")
         db = @mongo.db(dbname)
+
         collections = db.collections.select { |c| spec.key?(c.name) }
+        # TODO: spec & doc priority collection mgmt
+        collections = collections.sort do |a, b|
+          priority_a = spec[a.name][:meta][:priority] rescue Float::INFINITY
+          priority_b = spec[b.name][:meta][:priority] rescue Float::INFINITY
+          priority_a <=> priority_b
+        end
 
         collections.each do |collection|
           ns = "#{dbname}.#{collection.name}"
