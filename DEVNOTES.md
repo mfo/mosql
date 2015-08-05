@@ -3,30 +3,36 @@
 ```
 lib/mosql/row.rb:
   * [  2] [TODO] spec Row modeling
-  * [ 28] [FIXME] safe loopup for pkey
+  * [ 33] [FIXME] safe loopup for pkey
 
 lib/mosql/schema.rb:
-  * [316] [TODO] spec copy column skip $serial as well as $timestamp. Digg PG default sequence value
-  * [336] [TODO] spec usage of objs[Row...]
+  * [187] [TODO] spec fetch_nested_attribute
+  * [188] [TODO] spec fetch parent value
+  * [235] [TODO] spec row usage [ensure schema root/parent, ns root/parent etc...]
+  * [315] [TODO] spec copy column skip $serial as well as $timestamp. Digg PG default sequence value
+  * [335] [TODO] spec usage of objs[Row...]
 
 lib/mosql/sql.rb:
   * [ 29] [TODO] spec table for row
   * [ 34] [TODO] spec extract row extract is done with a Row
+  * [ 39] [TODO] spec upsert nested rows
 
 lib/mosql/streamer.rb:
-  * [ 51] [TODO] spec cols zipping with rows
-  * [132] [TODO] spec batch behaviour
+  * [117] [TODO] spec & doc priority collection mgmt
+  * [136] [TODO] spec batch behaviour
 ```
 
 # Document : news props for nested schema
 
 ```
-sharypic_development:
+
+development_db_name:
   events:
     :meta:
       :table: facts_event_creations
       :extra_props: false
-
+      :priority: 1
+  
     :columns:
     - dimensions_event_id:
       :source: _id
@@ -42,7 +48,8 @@ sharypic_development:
         :meta:
           :table: facts_invitations
           :extra_props: false
-
+          :priority: 2
+  
         :columns:
           - id:
             :source: '$serial'
@@ -53,4 +60,5 @@ sharypic_development:
           - dimensions_invitation_id:
             :source: '$nested invitations[]._id'
             :type: TEXT
+
 ```
