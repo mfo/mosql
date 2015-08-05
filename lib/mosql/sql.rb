@@ -36,10 +36,17 @@ module MoSQL
       @schema.transform(ns, obj)
     end
 
+    # TODO: spec upsert nested rows
     def upsert_ns(ns, obj)
       row = transform_one_ns(ns, obj)
       h = row.as_upsert(@schema)
       upsert!(table_for_ns(ns), @schema.primary_sql_key_for_ns(ns), h)
+
+      row.nested.each do |nested_row|
+        nested_ns = nested_row.ns
+        h_nested = nested_row.as_upsert(@schema)
+        upsert!(table_for_ns(nested_ns), @schema.primary_sql_key_for_ns(ns), h_nested)
+      end
     end
 
     def delete_ns(ns, obj)
