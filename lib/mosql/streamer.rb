@@ -48,16 +48,13 @@ module MoSQL
       end
     end
 
-    # TODO: spec cols zipping with rows
     def bulk_upsert(table, ns, items)
       begin
         @schema.copy_data(table.db, ns, items)
       rescue Sequel::DatabaseError => e
         log.debug("Bulk insert error (#{e}), attempting invidual upserts...")
-        cols = @schema.all_columns(@schema.find_ns(ns))
         items.each do |it|
-          h = {}
-          cols.zip(it.attributes).each { |k,v| h[k] = v }
+          h = it.as_upsert(@schema) # beware cols.zip agian.. again, again
           unsafe_handle_exceptions(ns, h) do
             @sql.upsert!(table, @schema.primary_sql_key_for_ns(ns), h)
           end

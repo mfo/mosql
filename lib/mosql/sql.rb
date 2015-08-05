@@ -33,21 +33,19 @@ module MoSQL
 
     # TODO: spec extract row extract is done with a Row
     def transform_one_ns(ns, obj)
-      h = {}
-      cols = @schema.all_columns(@schema.find_ns(ns))
-      row  = @schema.transform(ns, obj)
-      cols.zip(row.attributes).each { |k,v| h[k] = v }
-      h
+      @schema.transform(ns, obj)
     end
 
     def upsert_ns(ns, obj)
-      h = transform_one_ns(ns, obj)
+      row = transform_one_ns(ns, obj)
+      h = row.as_upsert(@schema)
       upsert!(table_for_ns(ns), @schema.primary_sql_key_for_ns(ns), h)
     end
 
     def delete_ns(ns, obj)
       primary_sql_keys = @schema.primary_sql_key_for_ns(ns)
-      h = transform_one_ns(ns, obj)
+      row = transform_one_ns(ns, obj)
+      h = row.as_upsert(@schema)
       query = {}
       primary_sql_keys.each do |key|
         raise "No #{primary_sql_keys} found in transform of #{obj.inspect}" if h[key].nil?

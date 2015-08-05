@@ -23,6 +23,12 @@ module MoSQL
       self
     end
 
+    def as_upsert(_schema)
+      h = {}
+      cols = _schema.all_columns(_schema.find_ns(ns))
+      cols.zip(attributes).each { |k,v| h[k] = v }
+      h
+    end
     # row sql
     # nested sql
     # FIXME: safe loopup for pkey
