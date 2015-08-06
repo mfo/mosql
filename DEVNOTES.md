@@ -62,3 +62,54 @@ development_db_name:
             :type: TEXT
 
 ```
+
+# Mongo Replicaset
+
+## How To Replset [2.14]
+
+http://docs.mongodb.org/v2.4/reference/replica-configuration/
+
+## Create mongo conf files:
+
+### vi /usr/local/etc/mongod.conf
+```
+dbpath = /usr/local/var/mongodb
+
+# Append logs to /usr/local/var/log/mongodb/mongo.log
+logpath = /usr/local/var/log/mongodb/mongo.log
+logappend = true
+
+# Only accept local connections
+bind_ip = 127.0.0.1
+port = 27017
+
+fork = true
+replSet = rs0
+```
+
+### vi /usr/local/etc/mongod_replset.conf
+```
+dbpath = /usr/local/var/mongodb/rset
+
+bind_ip = 127.0.0.1
+port = 27018
+
+replSet = rs0
+fork = true
+
+logpath = /usr/local/var/log/mongodb/rset.log
+logappend = true
+```
+
+## run processes
+```
+$ mongod --config /usr/local/etc/mongo.conf
+$ mongod --config /usr/local/etc/mongod_replset.conf
+```
+
+## Setup replset in mongo conosle
+```
+$ mongo
+> var rsconfig = {"_id":"rs0","members":[{"_id":1,"host":"127.0.0.1:27017"},{"_id":2,"host":"127.0.0.1:27018"}]};
+> rs.initiate(rsconfig);
+```
